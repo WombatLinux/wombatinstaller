@@ -1,130 +1,68 @@
 
-#include <curses.h>
-#include <menu.h>
+#include <argp.h>
+#include <cjson/cJSON.h>
+#include <limits.h>
 
-/*
- * https://tldp.org/HOWTO/NCURSES-Programming-HOWTO/menus.html
- * https://www.cs.trinity.edu/~bmassing/Classes/CS3294_2016fall/SamplePrograms/ncurses/menu-example.c
- */
-
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-#define CTRLD 	4
-
-char *choices[] = {
-        "Choice 1",
-        "Choice 2",
-        "Choice 3",
-        "Choice 4",
-        "Choice 5",
-        "Choice 6",
-        "Choice 7",
-        "Choice 8",
-        "Choice 9",
-        "Choice 10",
-        "Exit",
-        (char *)NULL,
+const char *argp_program_version = "Wombat Installer v0.0.1";
+const char *argp_program_bug_address = "the github repo at https://github.com/wombatlinux/wombatinstaller";
+static char doc[] = "The default installer program for Wombat Linux.";
+static char args_doc[] = "";
+static struct argp_option options[] = {
+        { "userland", 'u', "PACKAGE", 0, "Set userland package [Default is sbase]"},
+        { "mirror", 'm', "MIRROR", 0, "Set USPP/USPM mirror, default is repo.wombatlinux.org"},
+        {"add-package", 'p', "PACKAGE", 0, "Add a specific package"},
+        { 0 }
 };
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
 
-int main()
-{	ITEM **my_items;
-    int c;
-    MENU *my_menu;
-    WINDOW *my_menu_win;
-    int n_choices, i;
+struct arguments {
+    char *mirror;
+    char *userland;
+    cJSON *packages;
+};
 
-    /* Initialize curses */
-    initscr();
-    start_color();
-    cbreak();
-    noecho();
-    keypad(stdscr, TRUE);
-    init_pair(1, COLOR_RED, COLOR_BLACK);
-    init_pair(2, COLOR_CYAN, COLOR_BLACK);
-
-    /* Create items */
-    n_choices = ARRAY_SIZE(choices);
-    my_items = (ITEM **)calloc(n_choices, sizeof(ITEM *));
-    for(i = 0; i < n_choices; ++i)
-        my_items[i] = new_item(choices[i],"");
-
-    /* Crate menu */
-    my_menu = new_menu((ITEM **)my_items);
-
-    /* Create the window to be associated with the menu */
-    my_menu_win = newwin(15, 70, 4, 4);
-    keypad(my_menu_win, TRUE);
-
-    /* Set main window and sub window */
-    set_menu_win(my_menu, my_menu_win);
-    set_menu_sub(my_menu, derwin(my_menu_win, 8, 68, 3, 1));
-    set_menu_format(my_menu, 7, 1);
-
-    /* Set menu mark to the string " * " */
-    set_menu_mark(my_menu, " * ");
-
-    /* Print a border around the main window and print a title */
-    box(my_menu_win, 0, 0);
-    print_in_middle(my_menu_win, 1, 0, 70, "My Menu", COLOR_PAIR(1));
-    mvwaddch(my_menu_win, 2, 0, ACS_LTEE);
-    mvwhline(my_menu_win, 2, 1, ACS_HLINE, 68);
-    mvwaddch(my_menu_win, 2, 69, ACS_RTEE);
-
-    /* Post the menu */
-    post_menu(my_menu);
-    wrefresh(my_menu_win);
-
-    attron(COLOR_PAIR(2));
-    mvprintw(LINES - 2, 0, "Use PageUp and PageDown to scoll down or up a page of items");
-    mvprintw(LINES - 1, 0, "Arrow Keys to navigate (F1 to Exit)");
-    attroff(COLOR_PAIR(2));
-    refresh();
-
-    while((c = wgetch(my_menu_win)) != KEY_F(1))
-    {       switch(c)
-        {	case KEY_DOWN:
-                menu_driver(my_menu, REQ_DOWN_ITEM);
-                break;
-            case KEY_UP:
-                menu_driver(my_menu, REQ_UP_ITEM);
-                break;
-            case KEY_NPAGE:
-                menu_driver(my_menu, REQ_SCR_DPAGE);
-                break;
-            case KEY_PPAGE:
-                menu_driver(my_menu, REQ_SCR_UPAGE);
-                break;
-        }
-        wrefresh(my_menu_win);
+static error_t parse_opt(int key, char *arg, struct argp_state *state) {
+    struct arguments *arguments = state->input;
+    switch (key) {
+        case 'u': arguments->userland = arg; break;
+        case 'm': arguments->mirror = arg; break;
+        case 'p': cJSON_AddItemToObject(arguments->packages, arg, cJSON_CreateString("placeholder")); break;
+        case ARGP_KEY_ARG: return 0;
+        default: return ARGP_ERR_UNKNOWN;
     }
-
-    /* Unpost and free all the memory taken up */
-    unpost_menu(my_menu);
-    free_menu(my_menu);
-    for(i = 0; i < n_choices; ++i)
-        free_item(my_items[i]);
-    endwin();
+    return 0;
 }
 
-void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
-{	int length, x, y;
-    float temp;
+static struct argp argp = { options, parse_opt, args_doc, doc, 0, 0, 0 };
 
-    if(win == NULL)
-        win = stdscr;
-    getyx(win, y, x);
-    if(startx != 0)
-        x = startx;
-    if(starty != 0)
-        y = starty;
-    if(width == 0)
-        width = 80;
+int main(int argc, char *argv[])
+{
+    struct arguments arguments;
 
-    length = strlen(string);
-    temp = (width - length)/ 2;
-    x = startx + (int)temp;
-    wattron(win, color);
-    mvwprintw(win, y, x, "%s", string);
-    wattroff(win, color);
-    refresh();
+    arguments.packages = cJSON_CreateObject();
+
+    printf("Welcome to the Wombat Linux Installer\n");
+
+    printf("Parsing any and all options...\n");
+    argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+    if (arguments.userland == NULL) arguments.userland = "sbase";
+    if (arguments.mirror == NULL) arguments.mirror = "http://repo.wombatlinux.org";
+
+    cJSON *config_to_have = cJSON_CreateObject();
+
+    printf("Setting packages...\n");
+    cJSON_AddItemToObject(arguments.packages, "uspm", cJSON_CreateString("placeholder"));
+    cJSON_AddItemToObject(arguments.packages, arguments.userland, cJSON_CreateString("placeholder"));
+
+    printf("Setting mirror...\n");
+    cJSON_AddItemToObject(config_to_have, "mirror", cJSON_CreateString(arguments.mirror));
+
+    char *output = cJSON_Print(arguments.packages);
+
+    printf("%s\n", output);
+
+    output = cJSON_Print(config_to_have);
+
+    printf("%s\n", output);
+    // ...
 }
