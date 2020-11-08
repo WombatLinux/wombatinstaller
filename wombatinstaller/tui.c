@@ -7,6 +7,7 @@
 
 #include <curses.h>
 #include <menu.h>
+#include <memory.h>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD 	4
@@ -60,7 +61,7 @@ int main()
 
     /* Print a border around the main window and print a title */
     box(my_menu_win, 0, 0);
-    print_in_middle(my_menu_win, 1, 0, 70, "My Menu", COLOR_PAIR(1));
+    print_in_middle(my_menu_win, 1, 0, 70, "Installer", COLOR_PAIR(1));
     mvwaddch(my_menu_win, 2, 0, ACS_LTEE);
     mvwhline(my_menu_win, 2, 1, ACS_HLINE, 68);
     mvwaddch(my_menu_win, 2, 69, ACS_RTEE);
