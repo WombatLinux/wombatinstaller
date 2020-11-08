@@ -1,11 +1,12 @@
+/*
+ * This program is in development and does not work
+ * Please use the other program
+ * Thank you.
+ */
+
 
 #include <curses.h>
 #include <menu.h>
-
-/*
- * https://tldp.org/HOWTO/NCURSES-Programming-HOWTO/menus.html
- * https://www.cs.trinity.edu/~bmassing/Classes/CS3294_2016fall/SamplePrograms/ncurses/menu-example.c
- */
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define CTRLD 	4
