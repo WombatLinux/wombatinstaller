@@ -2,7 +2,10 @@
 #include <argp.h>
 #include <cjson/cJSON.h>
 #include <limits.h>
+#include <memory.h>
+#include <stdlib.h>
 
+// setup for argp
 const char *argp_program_version = "Wombat Installer v0.0.1";
 const char *argp_program_bug_address = "the github repo at https://github.com/wombatlinux/wombatinstaller";
 static char doc[] = "The default installer program for Wombat Linux.";
@@ -13,6 +16,14 @@ static struct argp_option options[] = {
         {"add-package", 'p', "PACKAGE", 0, "Add a specific package"},
         { 0 }
 };
+
+char *concat(const char *s1, const char *s2) {
+    char *result = malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
+
+    strcpy(result, s1);
+    strcat(result, s2);
+    return result;
+}
 
 struct arguments {
     char *mirror;
@@ -25,7 +36,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     switch (key) {
         case 'u': arguments->userland = arg; break;
         case 'm': arguments->mirror = arg; break;
-        case 'p': cJSON_AddItemToObject(arguments->packages, arg, cJSON_CreateString("placeholder")); break;
+        /* put in a placeholder for the data as it will be overwritten on install */
+        case 'p': cJSON_AddItemToObject(arguments->packages, arg,
+                                        cJSON_CreateString("placeholder")); break;
         case ARGP_KEY_ARG: return 0;
         default: return ARGP_ERR_UNKNOWN;
     }
@@ -51,7 +64,9 @@ int main(int argc, char *argv[])
     cJSON *config_to_have = cJSON_CreateObject();
 
     printf("Setting packages...\n");
-    cJSON_AddItemToObject(arguments.packages, "uspm", cJSON_CreateString("placeholder"));
+    /* base packages to set up outside of extra packages */
+    cJSON_AddItemToObject(arguments.packages, "wombatlinux",
+                          cJSON_CreateString("placeholder"));
     cJSON_AddItemToObject(arguments.packages, arguments.userland, cJSON_CreateString("placeholder"));
 
     printf("Setting mirror...\n");
@@ -59,10 +74,23 @@ int main(int argc, char *argv[])
 
     char *output = cJSON_Print(arguments.packages);
 
-    printf("%s\n", output);
+    output = concat(output, "\n");
+
+    printf("Written to file: %s\n", output);
+
+    FILE *fp;
+
+    fp = fopen("packages.json", "w+");
+    fputs(output, fp);
+    fclose(fp);
 
     output = cJSON_Print(config_to_have);
+    output = concat(output, "\n");
 
-    printf("%s\n", output);
+    fp = fopen("config.json", "w+");
+    fputs(output, fp);
+    fclose(fp);
+
+    printf("Written to file: %s\n", output);
     // ...
 }
